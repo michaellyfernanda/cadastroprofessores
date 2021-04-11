@@ -1,0 +1,96 @@
+const express = require('express');
+const app = express();
+const port = 3004;
+const mongoClient = require('mongodb').MongoClient;
+const { ObjectId } = require('mongodb');
+(async() => {
+    const url = 'mongodb://localhost:27017'
+    const dbNome = 'Cadprofessores'
+    const cliente = await mongoClient.connect(url, {useUnifiedTopology: true})
+    const db = cliente.db(dbNome)
+
+    const professor = db.collection('professores');
+
+     app.use(express.json());
+
+
+    //Read All (Ler Tudo)
+    app.get('/professores', async (req, res) => {
+        res.send(await professor.find().toArray())
+    })
+
+    //Read Single (Ler individual)
+    app.get('/professor/:id',async(req,res)=>{
+        const id = req.params.id;
+        const mens = await professor.findOne({_id: ObjectId(id)})
+        res.send(mens)
+        
+     });
+
+
+    //Create single
+    app.post('/professor',async(req,res)=>{
+        const prof = req.body
+        await professor.insertOne(prof).then(result => {
+            console.log('Foi inserido %i item!',result.insertedCount)
+            console.log(req.body)
+            res.send('Professor criado com sucesso')
+            return result
+          })
+          .catch(err => console.error('Falha ao Inserir Documentos: %s',err))
+        
+    })
+
+
+     //Create many
+     app.post('/professorvarios',async(req,res)=>{
+        // no postman tem que ser [{prod1},{prod2}]
+        console.log(req.body)
+        const professorvarios = req.body
+        await professor.insertMany(professorvarios).then(result => {
+            console.log('Foram inseridos %i itens!',result.insertedCount)
+            console.log(req.body)
+            res.send('Professores criados com sucesso')
+            return result
+          })
+          .catch(err => console.error('Falha ao Inserir Documentos: %s',err))
+
+    })
+      
+
+    //Update single
+    app.put('/professor/alterar/:id',async(req,res)=>{
+        const id = req.params.id
+        const prof = req.body
+        await professor.updateOne(
+        {
+            _id: ObjectId(id)},
+            {
+                $set: {...prof}
+            }
+        )
+        res.send('Alteração individual por ID realizada com sucesso')
+    });
+
+
+    //remove professor por codigo passado por parametro
+     app.delete('/remover/:codigo',async(req,res) =>{
+        const codigo = req.params.codigo
+        await professor.deleteOne({ codigo: codigo})
+        res.send('Professor código: ' + codigo + ' removido com sucesso ')
+    })
+
+    //todos os professores de carga horária =0
+    app.delete('/cargahoraria/zerada/',async(req,res)=>{
+        await professor.deleteMany({ cargahoraria: 0 })
+        res.send('Professor(es) removido(s) com sucesso') 
+    })
+
+
+app.listen(port, () => {
+  console.info('Servidor rodando em localhost:' + port)
+  console.log('Log Servidor')
+  console.warn('Warn servidor')
+})
+
+})()
